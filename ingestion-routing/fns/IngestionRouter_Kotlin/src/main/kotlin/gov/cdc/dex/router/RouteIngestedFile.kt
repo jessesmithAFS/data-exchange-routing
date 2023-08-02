@@ -1,12 +1,15 @@
 package gov.cdc.dex.router
 
 import com.azure.identity.DefaultAzureCredentialBuilder
+import com.azure.security.keyvault.secrets.SecretClient
+import com.azure.security.keyvault.secrets.SecretClientBuilder
 import com.azure.storage.blob.BlobServiceClientBuilder
 import com.google.gson.Gson
 import com.microsoft.azure.functions.ExecutionContext
 import com.microsoft.azure.functions.annotation.*
 import gov.cdc.dex.router.dtos.EventSchema
 import gov.cdc.dex.router.dtos.RouteConfig
+import java.sql.*
 
 class RouteIngestedFile {
     
@@ -25,8 +28,8 @@ class RouteIngestedFile {
             context.logger.info("FileName: $fileName")
 
             val endpoint = "https://${System.getenv("BlobIngestStorageAccountName")}.blob.core.windows.net"
-            val azureCredential = DefaultAzureCredentialBuilder().build()
-            val blobServiceClient = BlobServiceClientBuilder().endpoint(endpoint).credential(azureCredential).buildClient()
+            //val blobServiceClient = BlobServiceClientBuilder().endpoint(endpoint).credential(azureCredential).buildClient()
+            val blobServiceClient = BlobServiceClientBuilder().endpoint(endpoint).connectionString(System.getenv("BlobIngestConnectionString")).buildClient()
             val blobContainerClient = blobServiceClient.getBlobContainerClient(System.getenv("BlobIngestContainerName"))
             val sourceBlob = blobContainerClient.getBlobClient(fileName)
             context.logger.info("Source Blob URL: " + sourceBlob.blobUrl)
@@ -36,8 +39,44 @@ class RouteIngestedFile {
             val messageType = sourceMetadata.getOrDefault("message_type", "?")
             context.logger.info("Message Type: $messageType")
 
+            //Get ConnectionString from Key Vault
+            val azureCredential = DefaultAzureCredentialBuilder().build()
+            val vaultURL = System.getenv("ConfigVaultURL")
+            val secretClient: SecretClient = SecretClientBuilder()
+                .vaultUrl(vaultURL)
+                .credential(azureCredential)
+                .buildClient()
+            val configConnString = secretClient.getSecret("ConfigSQLDBConnection").value
+            context.logger.info("Connection retrieved from Key Vault")
+
+            //Retrieve Configuration from SQL Database
+            try {
+                Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
+            } catch (e: ClassNotFoundException) {
+                context.logger.severe("SQL JDBC Driver not found.")
+            }
+            var connection: Connection? = null
+            var stmt: CallableStatement? = null
+            var rs: ResultSet? = null
+            var configJson: String? = null
+            try {
+                connection = DriverManager.getConnection(configConnString)
+                stmt = connection.prepareCall("{call GetRouterConfigByUseCase(?)}")
+                stmt.setString(1, "UploadAPI")
+                rs = stmt.executeQuery()
+                while(rs.next()) {
+                    configJson = rs.getString("ConfigurationJSON")
+                    context.logger.info("Configuration retrieved from database")
+                }
+            } catch (e: Exception) {
+                context.logger.severe("Exception: ${e.message}")
+            } finally {
+                rs?.close()
+                stmt?.close()
+                connection?.close()
+            }
+
             // Load configs
-            val configJson = this::class.java.classLoader.getResource("fileconfigs.json")?.readText() // Assuming the fileconfigs.json is in the resources directory
             if(configJson.isNullOrEmpty()){
                 context.logger.severe("Config file is missing or empty, routing cannot continue.")
             }
@@ -58,7 +97,8 @@ class RouteIngestedFile {
             val destinationFileName = fileName.split("/").last()
             val destinationBlobName = "${routeConfig.stagingLocations.destinationContainer}/${destinationFileName}"
             val destinationEndpoint = "https://${System.getenv("BlobDestinationStorageAccountName")}.blob.core.windows.net"
-            val destinationBlobServiceClient = BlobServiceClientBuilder().endpoint(destinationEndpoint).credential(azureCredential).buildClient()
+            //val destinationBlobServiceClient = BlobServiceClientBuilder().endpoint(destinationEndpoint).credential(azureCredential).buildClient()
+            val destinationBlobServiceClient = BlobServiceClientBuilder().endpoint(destinationEndpoint).connectionString(System.getenv("BlobDestinationConnectionString")).buildClient()
             val destinationContainerClient = destinationBlobServiceClient.getBlobContainerClient(System.getenv("BlobDestinationContainerName"))
             val destinationBlob = destinationContainerClient.getBlobClient(destinationBlobName)
             context.logger.info("Destination Blob URL: " + destinationBlob.blobUrl)
