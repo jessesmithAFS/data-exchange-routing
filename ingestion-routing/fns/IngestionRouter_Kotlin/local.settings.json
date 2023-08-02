@@ -9,6 +9,12 @@
     "BlobDestinationStorageAccountName": "**scrubbed**",
     "BlobDestinationContainerName": "**scrubbed**",
     "BlobIngestStorageAccountName": "**scrubbed**",
-    "BlobIngestContainerName": "**scrubbed**"
+    "BlobIngestContainerName": "**scrubbed**",
+    "ConfigVaultURL": "**scrubbed**",
+    "BlobIngestConnectionString": "**scrubbed**",
+    "BlobDestinationConnectionString": "**scrubbed**",
+    "AZURE_TENANT_ID": "**scrubbed**",
+    "AZURE_CLIENT_ID": "**scrubbed**",
+    "AZURE_CLIENT_SECRET": "**scrubbed**"
   }
 }
