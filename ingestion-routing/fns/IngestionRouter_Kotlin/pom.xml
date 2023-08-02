@@ -13,6 +13,7 @@
         <azure.functions.maven.plugin.version>1.24.0</azure.functions.maven.plugin.version>
         <azure.storage.blob.version>12.22.2</azure.storage.blob.version>
         <azure.identity.version>1.9.0</azure.identity.version>
+	<azure.keyvault.version>4.2.3</azure.keyvault.version>
         <azure.functions.java.library.version>3.0.0</azure.functions.java.library.version>
         <gson.version>2.10.1</gson.version>
         <functionResourceGroup>ocio-ede-dev-moderate-hl7-rg</functionResourceGroup>
@@ -46,7 +47,19 @@
             <artifactId>azure-identity</artifactId>
             <version>${azure.identity.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-security-keyvault-secrets</artifactId>
+            <version>4.5.3</version>
+        </dependency>
 
+        <!-- SQL -->
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <version>8.4.1.jre11</version>
+        </dependency>
+	    
         <!-- Misc -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
